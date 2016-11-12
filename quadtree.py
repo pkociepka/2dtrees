@@ -53,11 +53,6 @@ class QuadTree:
 
             self.children = {"SW": sw, "SE": se, "NE": ne, "NW": nw}
 
-            # self.add_node(sw)
-            # self.add_node(se)
-            # self.add_node(ne)
-            # self.add_node(nw)
-
             self.connect_node(self, sw)
             self.connect_node(self, se)
             self.connect_node(self, ne)
