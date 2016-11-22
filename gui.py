@@ -157,7 +157,7 @@ class GUI(BaseWidget):
         kd_plain_ax.set_xlim(0, X_SIZE)
         kd_plain_ax.set_ylim(0, Y_SIZE)
 
-        for i in xrange(self.find_step_no):
+        for i in range(self.find_step_no):
             color = self.find_steps[i].color
             nodes = self.find_steps[i].nodes
             for node in nodes:
@@ -194,13 +194,28 @@ class GUI(BaseWidget):
 
         self._kd_plain_fig.canvas.draw()
 
+    def draw_quad(self, q_plain_ax, node):
+        q_plain_ax.add_patch(
+            patches.Rectangle(node.frm, node.to[0] - node.frm[0], node.to[1] - node.frm[1], facecolor="#FFFFFF"))
+        if len(node.children.keys()) > 0:
+            for child in node.children.keys():
+                self.draw_quad(q_plain_ax, node.children[child])
+
+    def quad_points(self, node):
+        points = [node.point] if node.point is not None else []
+        for child in node.children.keys():
+            points.extend(self.quad_points(node.children[child]))
+        return points
+
     def _refresh_q_plain(self):
         self._q_plain_fig.clear()
         q_plain_ax = self._q_plain_fig.add_subplot(111)
         q_plain_ax.set_xlim(0, X_SIZE)
         q_plain_ax.set_ylim(0, Y_SIZE)
 
-        #TODO
+        self.draw_quad(q_plain_ax, self._qt)
+        for point in self.quad_points(self._qt):
+            q_plain_ax.plot([point[0]], [point[1]], 'ob')
 
         self._q_plain_fig.canvas.draw()
 
