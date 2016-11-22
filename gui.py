@@ -147,8 +147,10 @@ class GUI(BaseWidget):
         q_graph_ax.get_yaxis().set_visible(False)
         q_graph_labels = {x: x.label() for x in self._q_graph}
         q_graph_pos = graphviz_layout(self._q_graph, prog='dot')
+        q_graph_nodelist = [x for x in self._q_graph]
+        q_graph_sizes = [(10 if x.empty else 1000) for x in q_graph_nodelist]
         nx.draw_networkx(self._q_graph, q_graph_pos, ax=q_graph_ax, labels=q_graph_labels, with_labels=True, arrows=False,
-                         node_size=1500, node_color='#FFFFFF', font_size=10)
+                         nodelist=q_graph_nodelist, node_size=q_graph_sizes, node_color='#FFFFFF', font_size=8)
         self._q_graph_fig.canvas.draw()
 
     def _refresh_kd_plain(self):
