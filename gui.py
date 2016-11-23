@@ -155,7 +155,10 @@ class GUI(BaseWidget):
         q_graph_nodelist = [x for x in self._q_graph]
         q_graph_sizes = [(50 if x.empty else 1000) for x in q_graph_nodelist]
         q_graph_colors = ["#00FF00"
-                          if x in self.q_find_steps[:self.find_step_no] and not x.empty
+                          if x in self.q_find_steps[:self.find_step_no]
+                             and not x.empty and x.point in self.q_find_result
+                          else "#AAAAAA" if self.find_step_no + 1 < len(self.q_find_steps) and
+                                            x == self.q_find_steps[self.find_step_no+1]
                           else "#FFFFFF" for x in self._q_graph]
         nx.draw_networkx(self._q_graph, q_graph_pos, ax=q_graph_ax, labels=q_graph_labels, with_labels=True,
                          arrows=False,
@@ -234,7 +237,11 @@ class GUI(BaseWidget):
 
         self.draw_quad(q_plain_ax, self._qt)
         for point in self.quad_points(self._qt):
-            q_plain_ax.plot([point[0]], [point[1]], 'ob')
+            color = 'og' \
+                if point in [x.point for x in self.q_find_steps[:self.find_step_no] if x] \
+                   and point in self.q_find_result \
+                else 'ob'
+            q_plain_ax.plot([point[0]], [point[1]], color)
 
         if self.find_frm:
             q_plain_ax.plot([self.find_frm[0]], [self.find_frm[1]], 'or')
