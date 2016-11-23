@@ -64,42 +64,39 @@ class QuadTree:
         else:
             [child.insert(point) for child in list(self.children.values()) if child.has_in_range(point)]
 
-    def find(self, frm, to):
+    def all_nodes(self):
         if len(self.children) == 0:
-            if not self.empty:
-                if frm[0] <= self.point[0] and \
-                                frm[1] <= self.point[1] and \
-                                to[0] > self.point[0] and \
-                                to[1] > self.point[1]:
-                    return [self.point], [self]
-                else:
-                    return [], [self]
-            else:
-                return [], [self]
+            return [self]
         else:
-            x_mid = (self.frm[0] + self.to[0]) / 2
-            y_mid = (self.frm[1] + self.to[1]) / 2
+            return [self] + reduce(lambda x, y: x + y, map(lambda x: x.all_nodes(), self.children.values()))
+
+    def all_points(self):
+        if len(self.children) == 0:
+            return [] if self.empty else [self.point]
+        else:
+            return ([] if self.empty else [self.point]) + reduce(lambda x, y: x + y, map(lambda x: x.all_points(), self.children.values()))
+
+    def find(self, frm, to):
+        if self.to[0] < frm[0] or self.to[1] < frm[1] or self.frm[0] > to[0] or self.frm[1] > to[1]:
+            return [], [QuadStep(self.all_nodes(), '#444444')]
+        elif self.frm[0] >= frm[0] and self.frm[1] >= frm[1] and self.to[0] <= to[0] and self.to[1] <= to[1]:
+            return self.all_points(), [QuadStep(self.all_nodes(), '#B4FEB4')]
+        elif len(self.children) == 0:
+            if not self.empty and \
+                            frm[0] <= self.point[0] and \
+                            frm[1] <= self.point[1] and \
+                            to[0] > self.point[0] and \
+                            to[1] > self.point[1]:
+                return [self.point], [QuadStep([self], '#B4FFB4')]
+            else:
+                return [], [QuadStep([self], '#FFFFFF')]
+        else:
             res = []
             steps = []
-
-            if frm[0] <= x_mid:
-                if frm[1] < y_mid:
-                    (new_res, new_steps) = self.children["SW"].find(frm, (x_mid, y_mid))
-                    res.extend(new_res)
-                    steps.extend(new_steps)
-                if to[1] > y_mid:
-                    (new_res, new_steps) = self.children["NW"].find((frm[0], y_mid), (x_mid, to[1]))
-                    res.extend(new_res)
-                    steps.extend(new_steps)
-            if to[0] > x_mid:
-                if frm[1] < y_mid:
-                    (new_res, new_steps) = self.children["SE"].find((x_mid, frm[0]), (to[0], y_mid))
-                    res.extend(new_res)
-                    steps.extend(new_steps)
-                if to[1] > y_mid:
-                    (new_res, new_steps) = self.children["NE"].find((x_mid, y_mid), to)
-                    res.extend(new_res)
-                    steps.extend(new_steps)
+            for x in ["SW", "NW", "SE", "NE"]:
+                (new_res, new_steps) = self.children[x].find(frm, to)
+                res.extend(new_res)
+                steps.extend(new_steps)
 
             return res, steps
 
@@ -121,7 +118,7 @@ class QuadTree:
         print(self.to_str(0))
 
 
-class FindStep:
-    def __init__(self, points, panes):
-        self.points = points
-        self.panes = panes
+class QuadStep:
+    def __init__(self, node, color):
+        self.node = node
+        self.color = color

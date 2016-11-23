@@ -6,7 +6,7 @@ from pyforms.Controls import *
 import matplotlib.patches as patches
 
 from kdtree import *
-from quadtree import QuadTree
+from quadtree import QuadTree, QuadStep
 
 X_SIZE, Y_SIZE = 100, 100
 NO_FIND, FIND1, FIND2, DISPLAYING = 0, 1, 2, 3
@@ -27,8 +27,8 @@ class GUI(BaseWidget):
         self.find_points = []
         self.find_frm = None
         self.find_to = None
-        self.find_result = None
-        self.find_steps = []
+        self.kd_find_steps = []
+        self.kd_find_result = None
         self.find_step_no = 0
         self.q_find_steps = []
         self.q_find_result = []
@@ -86,8 +86,9 @@ class GUI(BaseWidget):
                 self.find_to = (max(map(lambda x: x[0], self.find_points)), max(map(lambda x: x[1], self.find_points)))
                 self._refresh_graphs()
                 self.find_points = []
-                self.find_result = self._kdt.find(self.find_frm, self.find_to)
+                self.kd_find_result = self._kdt.find(self.find_frm, self.find_to)
                 (self.q_find_result, self.q_find_steps) = self._qt.find(self.find_frm, self.find_to)
+                print self.q_find_result
                 self._q_found_points = []
                 self.find_stage = DISPLAYING
 
@@ -97,12 +98,12 @@ class GUI(BaseWidget):
 
     def _on_step(self):
         if self.find_stage == DISPLAYING:
-            if self.find_step_no >= len(self.find_steps):
+            if self.find_step_no >= len(self.kd_find_steps) and self.find_step_no >= len(self.q_find_steps):
                 self.find_points = []
                 self.find_frm = None
                 self.find_to = None
-                self.find_result = None
-                self.find_steps = []
+                self.kd_find_result = None
+                self.kd_find_steps = []
                 self.find_step_no = 0
                 self.find_stage = NO_FIND
                 self.q_find_steps = []
@@ -126,7 +127,7 @@ class GUI(BaseWidget):
         self._kd_graph.add_edge(parent, node)
 
     def highlight_kd_nodes(self, nodes, color, visual_info=(False, True)):
-        self.find_steps.append(_KDFindStep(nodes, color, visual_info))
+        self.kd_find_steps.append(_KDFindStep(nodes, color, visual_info))
 
     def _refresh_kd_structure(self):
         self._kd_graph_fig.clear()
@@ -135,9 +136,10 @@ class GUI(BaseWidget):
         kd_graph_ax.get_yaxis().set_visible(False)
         kd_graph_labels = {x: x.label() for x in self._kd_graph}
 
+        kd_graph_sizes = [(100 if x.point is None else 1500) for x in self._kd_graph]
         kd_graph_colors = []
         for node in self._kd_graph.__iter__():
-            steps = [x for x in self.find_steps[:self.find_step_no] if node in x.nodes]
+            steps = [x for x in self.kd_find_steps[:self.find_step_no] if node in x.nodes]
             if len(steps) > 0:
                 kd_graph_colors.append(steps[-1].color)
             else:
@@ -145,7 +147,7 @@ class GUI(BaseWidget):
 
         kd_graph_pos = graphviz_layout(self._kd_graph, prog='dot')
         nx.draw_networkx(self._kd_graph, kd_graph_pos, ax=kd_graph_ax, labels=kd_graph_labels, with_labels=True,
-                         node_color=kd_graph_colors, arrows=False, node_size=1500, font_size=10)
+                         node_color=kd_graph_colors, arrows=False, node_size=kd_graph_sizes, font_size=10)
         self._kd_graph_fig.canvas.draw()
 
     def _refresh_q_structure(self):
@@ -157,12 +159,16 @@ class GUI(BaseWidget):
         q_graph_pos = graphviz_layout(self._q_graph, prog='dot')
         q_graph_nodelist = [x for x in self._q_graph]
         q_graph_sizes = [(50 if x.empty else 1000) for x in q_graph_nodelist]
-        q_graph_colors = ["#00FF00"
-                          if x in self.q_find_steps[:self.find_step_no]
-                             and not x.empty and x.point in self.q_find_result
-                          else "#AAAAAA" if self.find_step_no - 1 in range(len(self.q_find_steps)) and
-                                            x == self.q_find_steps[self.find_step_no - 1]
-                          else "#FFFFFF" for x in self._q_graph]
+        color_map = {}
+        for step in self.q_find_steps[:self.find_step_no]:
+            for node in step.node:
+                color_map[node] = step.color
+
+        if self.find_stage == DISPLAYING and self.q_find_steps and self.find_step_no <= len(self.q_find_steps) and len(self.q_find_steps[self.find_step_no - 1].node) > 0:
+            color_map[self.q_find_steps[self.find_step_no - 1].node[0]] = "#B4B4B4"
+
+        q_graph_colors = [color_map[x] if x in color_map else "#FFFFFF" for x in self._q_graph]
+
         nx.draw_networkx(self._q_graph, q_graph_pos, ax=q_graph_ax, labels=q_graph_labels, with_labels=True,
                          arrows=False,
                          nodelist=q_graph_nodelist, node_size=q_graph_sizes, node_color=q_graph_colors, font_size=8)
@@ -175,10 +181,10 @@ class GUI(BaseWidget):
         kd_plain_ax.set_ylim(0, Y_SIZE)
 
         for i in range(self.find_step_no):
-            color = self.find_steps[i].color
-            nodes = self.find_steps[i].nodes
+            color = self.kd_find_steps[i].color
+            nodes = self.kd_find_steps[i].nodes
             for node in nodes:
-                if self.find_steps[i].visual_info[1]:
+                if self.kd_find_steps[i].visual_info[1]:
                     kd_plain_ax.add_patch(
                         patches.Rectangle(node.frm, node.to[0] - node.frm[0], node.to[1] - node.frm[1],
                                           facecolor=color))
@@ -194,7 +200,7 @@ class GUI(BaseWidget):
                 else:
                     kd_plain_ax.plot((n.point[0], n.point[0]), (n.frm[1], n.to[1]), 'b-')
 
-        steps_with_found = [x for x in self.find_steps[:self.find_step_no] if x.visual_info[0]]
+        steps_with_found = [x for x in self.kd_find_steps[:self.find_step_no] if x.visual_info[0]]
         found_nodes = reduce(lambda x, y: x + y, [x.nodes for x in steps_with_found], [])
         for n in self._kd_graph.__iter__():
             if n.point is not None:
@@ -215,16 +221,19 @@ class GUI(BaseWidget):
 
         self._kd_plain_fig.canvas.draw()
 
-    def draw_quad(self, q_plain_ax, node):
+    def draw_quad(self, q_plain_ax, node, c=None):
         step = self.q_find_steps[self.find_step_no - 1] \
             if self.find_stage == DISPLAYING and self.q_find_steps and self.find_step_no <= len(self.q_find_steps) \
             else None
-        color = "#AAAAAA" if step and step.frm == node.frm and step.to == node.to else "#FFFFFF"
+        if c is None:
+            color = "#AAAAAA" if step and len(step.node) > 0 and step.node[0].frm == node.frm and step.node[0].to == node.to else "#FFFFFF"
+        else:
+            color = c
         q_plain_ax.add_patch(
             patches.Rectangle(node.frm, node.to[0] - node.frm[0], node.to[1] - node.frm[1], facecolor=color))
         if len(node.children.keys()) > 0:
             for child in node.children.keys():
-                self.draw_quad(q_plain_ax, node.children[child])
+                self.draw_quad(q_plain_ax, node.children[child], c)
 
     def quad_points(self, node):
         points = [node.point] if node.point is not None else []
@@ -239,21 +248,28 @@ class GUI(BaseWidget):
         q_plain_ax.set_ylim(0, Y_SIZE)
 
         self.draw_quad(q_plain_ax, self._qt)
+
+        for step in self.q_find_steps[:self.find_step_no]:
+            if step.color == "#B4FEB4" or step.color == "#444444":
+                self.draw_quad(q_plain_ax, step.node[0], step.color)
+
+        found_points = []
+        for step in self.q_find_steps[:self.find_step_no]:
+            if step.color == "#B4FFB4" or step.color == "#B4FEB4":
+                for node in step.node:
+                    found_points.append(node.point)
+
         for point in self.quad_points(self._qt):
-            color = 'og' \
-                if point in [x.point for x in self.q_find_steps[:self.find_step_no] if x] \
-                   and point in self.q_find_result \
-                else 'ob'
+            color = 'og' if point in found_points else 'ob'
             q_plain_ax.plot([point[0]], [point[1]], color)
 
-        if self.find_frm:
-            q_plain_ax.plot([self.find_frm[0]], [self.find_frm[1]], 'or')
-            if self.find_to:
-                q_plain_ax.plot([self.find_to[0]], [self.find_to[1]], 'or')
-                q_plain_ax.add_patch(
-                    patches.Rectangle(self.find_frm, self.find_to[0] - self.find_frm[0],
-                                      self.find_to[1] - self.find_frm[1],
-                                      facecolor='none'))
+        if self.find_stage == FIND2 or self.find_stage == DISPLAYING:
+            q_plain_ax.plot((self.find_frm[0], self.find_frm[0]), (self.find_frm[1], self.find_to[1]), 'r-')
+            q_plain_ax.plot((self.find_frm[0], self.find_to[0]), (self.find_to[1], self.find_to[1]), 'r-')
+            q_plain_ax.plot((self.find_to[0], self.find_to[0]), (self.find_to[1], self.find_frm[1]), 'r-')
+            q_plain_ax.plot((self.find_to[0], self.find_frm[0]), (self.find_frm[1], self.find_frm[1]), 'r-')
+        elif self.find_stage == FIND1:
+            q_plain_ax.plot([self.find_points[0][0]], [self.find_points[0][1]], 'ok')
 
         self._q_plain_fig.canvas.draw()
 
