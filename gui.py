@@ -40,10 +40,12 @@ class GUI(BaseWidget):
         self._kd_plain = ControlMatplotlib('KD tree plain')
         self._find_button = ControlButton('Find')
         self._step_button = ControlButton('Step')
+        self._clear_button = ControlButton('Clear')
         self._find_button.value = self._on_find
         self._step_button.value = self._on_step
+        self._clear_button.value = self._clear_all
         self._formset = [
-            '_find_button', '||', '_step_button', '=',
+            '_find_button', '||', '_step_button', '||', "_clear_button", '=',
             {
                 'Quad tree': ['_q_structure', '||', '_q_plain'],
                 'KD tree': ['_kd_structure', '||', '_kd_plain']
@@ -88,7 +90,6 @@ class GUI(BaseWidget):
                 self.find_points = []
                 self.kd_find_result = self._kdt.find(self.find_frm, self.find_to)
                 (self.q_find_result, self.q_find_steps) = self._qt.find(self.find_frm, self.find_to)
-                print self.q_find_result
                 self._q_found_points = []
                 self.find_stage = DISPLAYING
 
@@ -113,6 +114,31 @@ class GUI(BaseWidget):
             else:
                 self.find_step_no += 1
                 self._refresh_graphs()
+
+    def _clear_all(self):
+        self.find_points = []
+        self.find_frm = None
+        self.find_to = None
+        self.kd_find_result = None
+        self.kd_find_steps = []
+        self.find_step_no = 0
+        self.find_stage = NO_FIND
+        self.q_find_steps = []
+        self.q_find_result = []
+        self._q_found_points = []
+
+        self._q_graph = nx.DiGraph()
+        self._kd_graph = nx.DiGraph()
+
+        self._qt = QuadTree((0, 0), (X_SIZE, Y_SIZE),
+                            lambda x: self.add_q_node(x),
+                            lambda x, y: self.connect_q_node(x, y))
+        self._kdt = KDTree((0, 0), (X_SIZE, Y_SIZE),
+                           lambda x: self.add_kd_node(x),
+                           lambda x, y: self.connect_kd_node(x, y),
+                           lambda x, y, z=(False, True): self.highlight_kd_nodes(x, y, z))
+
+        self._refresh_graphs()
 
     def add_q_node(self, node):
         self._q_graph.add_node(node)
@@ -180,11 +206,11 @@ class GUI(BaseWidget):
         kd_plain_ax.set_xlim(0, X_SIZE)
         kd_plain_ax.set_ylim(0, Y_SIZE)
 
-        for i in range(self.find_step_no):
-            color = self.kd_find_steps[i].color
-            nodes = self.kd_find_steps[i].nodes
+        for step in self.kd_find_steps[:self.find_step_no]:
+            color = step.color
+            nodes = step.nodes
             for node in nodes:
-                if self.kd_find_steps[i].visual_info[1]:
+                if step.visual_info[1]:
                     kd_plain_ax.add_patch(
                         patches.Rectangle(node.frm, node.to[0] - node.frm[0], node.to[1] - node.frm[1],
                                           facecolor=color))
@@ -275,8 +301,8 @@ class GUI(BaseWidget):
 
     def _refresh_graphs(self):
         self._refresh_kd_structure()
-        self._refresh_q_structure()
         self._refresh_kd_plain()
+        self._refresh_q_structure()
         self._refresh_q_plain()
 
 
