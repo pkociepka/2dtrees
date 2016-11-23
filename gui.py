@@ -105,6 +105,9 @@ class GUI(BaseWidget):
                 self.find_steps = []
                 self.find_step_no = 0
                 self.find_stage = NO_FIND
+                self.q_find_steps = []
+                self.q_find_result = []
+                self._q_found_points = []
                 self._refresh_graphs()
             else:
                 self.find_step_no += 1
