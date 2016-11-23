@@ -154,9 +154,12 @@ class GUI(BaseWidget):
         q_graph_pos = graphviz_layout(self._q_graph, prog='dot')
         q_graph_nodelist = [x for x in self._q_graph]
         q_graph_sizes = [(50 if x.empty else 1000) for x in q_graph_nodelist]
+        q_graph_colors = ["#00FF00"
+                          if x in self.q_find_steps[:self.find_step_no] and not x.empty
+                          else "#FFFFFF" for x in self._q_graph]
         nx.draw_networkx(self._q_graph, q_graph_pos, ax=q_graph_ax, labels=q_graph_labels, with_labels=True,
                          arrows=False,
-                         nodelist=q_graph_nodelist, node_size=q_graph_sizes, node_color='#FFFFFF', font_size=8)
+                         nodelist=q_graph_nodelist, node_size=q_graph_sizes, node_color=q_graph_colors, font_size=8)
         self._q_graph_fig.canvas.draw()
 
     def _refresh_kd_plain(self):
