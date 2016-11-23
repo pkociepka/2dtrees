@@ -71,28 +71,37 @@ class QuadTree:
                                 frm[1] <= self.point[1] and \
                                 to[0] > self.point[0] and \
                                 to[1] > self.point[1]:
-                    return [self.point]
+                    return [self.point], [self]
                 else:
-                    return []
+                    return [], [self]
             else:
-                return []
+                return [], [self]
         else:
             x_mid = (self.frm[0] + self.to[0]) / 2
             y_mid = (self.frm[1] + self.to[1]) / 2
             res = []
+            steps = []
 
             if frm[0] <= x_mid:
                 if frm[1] < y_mid:
-                    res.extend(self.children["SW"].find(frm, (x_mid, y_mid)))
+                    (new_res, new_steps) = self.children["SW"].find(frm, (x_mid, y_mid))
+                    res.extend(new_res)
+                    steps.extend(new_steps)
                 if to[1] > y_mid:
-                    res.extend(self.children["NW"].find((frm[0], y_mid), (x_mid, to[1])))
+                    (new_res, new_steps) = self.children["NW"].find((frm[0], y_mid), (x_mid, to[1]))
+                    res.extend(new_res)
+                    steps.extend(new_steps)
             if to[0] > x_mid:
                 if frm[1] < y_mid:
-                    res.extend(self.children["SE"].find((x_mid, frm[0]), (to[0], y_mid)))
+                    (new_res, new_steps) = self.children["SE"].find((x_mid, frm[0]), (to[0], y_mid))
+                    res.extend(new_res)
+                    steps.extend(new_steps)
                 if to[1] > y_mid:
-                    res.extend(self.children["NE"].find((x_mid, y_mid), to))
+                    (new_res, new_steps) = self.children["NE"].find((x_mid, y_mid), to)
+                    res.extend(new_res)
+                    steps.extend(new_steps)
 
-            return res
+            return res, steps
 
     def to_str(self, depth):
         padding = "\t" * depth
@@ -110,3 +119,9 @@ class QuadTree:
 
     def _print(self):
         print(self.to_str(0))
+
+
+class FindStep:
+    def __init__(self, points, panes):
+        self.points = points
+        self.panes = panes

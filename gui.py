@@ -30,6 +30,9 @@ class GUI(BaseWidget):
         self.find_result = None
         self.find_steps = []
         self.find_step_no = 0
+        self.q_find_steps = []
+        self.q_find_result = []
+        self._q_found_points = []
 
         self._q_structure = ControlMatplotlib('Quad tree structure')
         self._q_plain = ControlMatplotlib('Quad tree plain')
@@ -84,6 +87,8 @@ class GUI(BaseWidget):
                 self._refresh_graphs()
                 self.find_points = []
                 self.find_result = self._kdt.find(self.find_frm, self.find_to)
+                (self.q_find_result, self.q_find_steps) = self._qt.find(self.find_frm, self.find_to)
+                self._q_found_points = []
                 self.find_stage = DISPLAYING
 
     def _on_find(self):
@@ -148,8 +153,9 @@ class GUI(BaseWidget):
         q_graph_labels = {x: x.label() for x in self._q_graph}
         q_graph_pos = graphviz_layout(self._q_graph, prog='dot')
         q_graph_nodelist = [x for x in self._q_graph]
-        q_graph_sizes = [(10 if x.empty else 1000) for x in q_graph_nodelist]
-        nx.draw_networkx(self._q_graph, q_graph_pos, ax=q_graph_ax, labels=q_graph_labels, with_labels=True, arrows=False,
+        q_graph_sizes = [(50 if x.empty else 1000) for x in q_graph_nodelist]
+        nx.draw_networkx(self._q_graph, q_graph_pos, ax=q_graph_ax, labels=q_graph_labels, with_labels=True,
+                         arrows=False,
                          nodelist=q_graph_nodelist, node_size=q_graph_sizes, node_color='#FFFFFF', font_size=8)
         self._q_graph_fig.canvas.draw()
 
@@ -164,9 +170,13 @@ class GUI(BaseWidget):
             nodes = self.find_steps[i].nodes
             for node in nodes:
                 if self.find_steps[i].visual_info[1]:
-                    kd_plain_ax.add_patch(patches.Rectangle(node.frm, node.to[0] - node.frm[0], node.to[1] - node.frm[1], facecolor=color))
+                    kd_plain_ax.add_patch(
+                        patches.Rectangle(node.frm, node.to[0] - node.frm[0], node.to[1] - node.frm[1],
+                                          facecolor=color))
                 else:
-                    kd_plain_ax.add_patch(patches.Rectangle(node.frm, node.to[0] - node.frm[0], node.to[1] - node.frm[1], facecolor='#FFFFFF'))
+                    kd_plain_ax.add_patch(
+                        patches.Rectangle(node.frm, node.to[0] - node.frm[0], node.to[1] - node.frm[1],
+                                          facecolor='#FFFFFF'))
 
         for n in self._kd_graph.__iter__():
             if n.point is not None:
@@ -197,8 +207,12 @@ class GUI(BaseWidget):
         self._kd_plain_fig.canvas.draw()
 
     def draw_quad(self, q_plain_ax, node):
+        step = self.q_find_steps[self.find_step_no - 1] \
+            if self.find_stage == DISPLAYING and self.q_find_steps and self.find_step_no <= len(self.q_find_steps) \
+            else None
+        color = "#AAAAAA" if step and step.frm == node.frm and step.to == node.to else "#FFFFFF"
         q_plain_ax.add_patch(
-            patches.Rectangle(node.frm, node.to[0] - node.frm[0], node.to[1] - node.frm[1], facecolor="#FFFFFF"))
+            patches.Rectangle(node.frm, node.to[0] - node.frm[0], node.to[1] - node.frm[1], facecolor=color))
         if len(node.children.keys()) > 0:
             for child in node.children.keys():
                 self.draw_quad(q_plain_ax, node.children[child])
@@ -218,6 +232,15 @@ class GUI(BaseWidget):
         self.draw_quad(q_plain_ax, self._qt)
         for point in self.quad_points(self._qt):
             q_plain_ax.plot([point[0]], [point[1]], 'ob')
+
+        if self.find_frm:
+            q_plain_ax.plot([self.find_frm[0]], [self.find_frm[1]], 'or')
+            if self.find_to:
+                q_plain_ax.plot([self.find_to[0]], [self.find_to[1]], 'or')
+                q_plain_ax.add_patch(
+                    patches.Rectangle(self.find_frm, self.find_to[0] - self.find_frm[0],
+                                      self.find_to[1] - self.find_frm[1],
+                                      facecolor='none'))
 
         self._q_plain_fig.canvas.draw()
 
